@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        html, body {
+            background: transparent;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // ---------------------------------------------------------------
+        // Turbo blow-off valve playback ('playSound' messages).
+        // Only one BOV sound plays at a time - a new one always stops
+        // whatever's currently playing, whether that's a manual key press,
+        // an auto-trigger, or a nearby player's networked sound.
+        // ---------------------------------------------------------------
+        const bovAudioCache = {};
+        let bovCurrentAudio = null;
+
+        function playBovSound(file, volume, rate) {
+            if (bovCurrentAudio) {
+                bovCurrentAudio.pause();
+                bovCurrentAudio.currentTime = 0;
+            }
+
+            let audio = bovAudioCache[file];
+            if (!audio) {
+                audio = new Audio('sounds/' + file);
+                bovAudioCache[file] = audio;
+            }
+
+            audio.currentTime = 0;
+            audio.volume = (typeof volume === 'number') ? volume : 0.4;
+            audio.playbackRate = (typeof rate === 'number') ? rate : 1.0;
+            audio.onended = () => {
+                if (bovCurrentAudio === audio) bovCurrentAudio = null;
+            };
+            audio.play().catch(() => {});
+
+            bovCurrentAudio = audio;
+        }
+
+        // ---------------------------------------------------------------
+        // Backfire playback ('playBackfire' messages). Each file gets its
+        // own cached Audio element, so a multi-pop burst (which usually
+        // picks different files back to back) can overlap the way it's
+        // meant to instead of the pops cutting each other off.
+        // ---------------------------------------------------------------
+        const backfireAudioCache = {};
+
+        function playBackfireSound(file, volume) {
+            let audio = backfireAudioCache[file];
+
+            if (!audio) {
+                audio = new Audio('sounds/' + file);
+                backfireAudioCache[file] = audio;
+            } else {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+
+            audio.volume = Math.min(Math.max(volume, 0), 1);
+            audio.play().catch(() => {
+                // Autoplay can occasionally be blocked before the first
+                // user interaction with the NUI frame - safe to ignore.
+            });
+        }
+
+        // Both effects post messages into this same page, distinguished by
+        // shape: the turbo valve sends { type: 'playSound', ... }, the
+        // backfire sends { action: 'playBackfire', ... }. They're handled
+        // separately (see above) so neither one stops or steals from the
+        // other's sounds.
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+
+            if (data.type === 'playSound' && data.file) {
+                playBovSound(data.file, data.volume, data.rate);
+            } else if (data.action === 'playBackfire' && data.sound) {
+                playBackfireSound(data.sound, data.volume);
+            }
+        });
+    </script>
+</body>
+</html>

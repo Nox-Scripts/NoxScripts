@@ -1,0 +1,4 @@
+{
+	"version": "1.0.0",
+	"changelog": "TrapRepublic-BikeTrikz: merged the automatic wheelie-pose system and the Shift+Arrow manual trick poses into a single resource. Fixed a bug where using the manual poses mid-wheelie could permanently stop the automatic wheelie animation until re-entering the vehicle. Added a self-healing state check to prevent that class of bug from recurring. Cleaned up a duplicate vehicle whitelist entry."
+}

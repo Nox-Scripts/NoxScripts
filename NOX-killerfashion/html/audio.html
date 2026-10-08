@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>killerfashion audio</title>
+    <style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}</style>
+</head>
+<body>
+<!-- audio only: nothing is ever drawn and NUI focus is never taken -->
+<script>
+    // one <audio> per sound id ('self' = your own machine, 'p<id>' = nearby players)
+    const sounds = {};
+
+    function clamp(v) { return Math.min(Math.max(Number(v) || 0, 0), 1); }
+
+    function kill(id) {
+        const s = sounds[id];
+        if (!s) return;
+        if (s.timer) clearInterval(s.timer);
+        s.el.pause();
+        s.el.removeAttribute('src');
+        s.el.load();
+        delete sounds[id];
+    }
+
+    window.addEventListener('message', function (e) {
+        const d = e.data || {};
+        const id = d.id || 'self';
+
+        if (d.action === 'kfSewPlay') {
+            kill(id);
+            const el = new Audio(d.file || 'sounds/sewing.mp3');
+            el.loop = true;
+            el.volume = clamp(d.volume);
+            sounds[id] = { el: el, timer: null };
+            const p = el.play();
+            if (p && p.catch) p.catch(function () {});
+        }
+
+        if (d.action === 'kfSewVolume') {
+            const s = sounds[id];
+            if (s && !s.timer) s.el.volume = clamp(d.volume);
+        }
+
+        if (d.action === 'kfSewStop') {
+            const s = sounds[id];
+            if (!s) return;
+            const ms = Number(d.fade) || 0;
+            if (ms <= 0 || s.el.paused) return kill(id);
+            if (s.timer) return;
+            const start = s.el.volume;
+            let n = 0;
+            s.timer = setInterval(function () {
+                n++;
+                s.el.volume = clamp(start * (1 - n / 10));
+                if (n >= 10) kill(id);
+            }, ms / 10);
+        }
+    });
+</script>
+</body>
+</html>
